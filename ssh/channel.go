@@ -395,11 +395,18 @@ func (ch *channel) responseMessageReceived() error {
 	return nil
 }
 
+var (
+	ScaleftHackClose = false
+)
+
 func (ch *channel) handlePacket(packet []byte) error {
 	switch packet[0] {
 	case msgChannelData, msgChannelExtendedData:
 		return ch.handleData(packet)
 	case msgChannelClose:
+		if ScaleftHackClose {
+			break
+		}
 		ch.sendMessage(channelCloseMsg{PeersID: ch.remoteId})
 		ch.mux.chanList.remove(ch.localId)
 		ch.close()
@@ -444,6 +451,15 @@ func (ch *channel) handlePacket(packet []byte) error {
 			Type:      msg.Request,
 			WantReply: msg.WantReply,
 			Payload:   msg.RequestSpecificData,
+			ch:        ch,
+		}
+
+		ch.incomingRequests <- &req
+	case *channelCloseMsg:
+		req := Request{
+			Type:     "com.scaleft.channel_close",
+			WantReply: false,
+			Payload:   nil,
 			ch:        ch,
 		}
 
